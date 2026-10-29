@@ -63,20 +63,20 @@ export default function Screen() {
   if (session.status === 'LOBBY') {
     const recent = [...joined].sort((a, b) => b - a).slice(0, 18)
     return (
-      <Frame className="bg-plum-dark text-cream">
+      <Frame className="bg-plum-dark pb-[17vh] text-cream">
         {soundButton}
-        <EventTitle className="mb-10" />
+        <EventTitle className="mb-8" />
         <div className="grid w-full max-w-7xl grid-cols-[auto_1fr] items-center gap-16 px-12">
           <div className="text-center">
             <div className="rounded-3xl border-8 border-gold bg-white p-6">
-              <QRCodeSVG value={publicUrl} size={420} fgColor="#2a0636" level="M" />
+              <QRCodeSVG value={publicUrl} size={360} fgColor="#2a0636" level="M" />
             </div>
             <p className="mt-4 font-mono text-2xl">{publicUrl.replace(/^https?:\/\//, '')}</p>
           </div>
           <div>
-            <h1 className="font-serif text-8xl font-bold text-gold-light">💣 Pass the Bomb</h1>
+            <h1 className="whitespace-nowrap font-serif text-7xl font-bold text-gold-light">💣 Pass the Bomb</h1>
             <p className="mt-4 text-3xl text-cream/80">{session.registrationOpen ? 'Scan to join!' : 'Joining opens soon…'}</p>
-            <div className="mt-8 text-[9rem] font-black leading-none text-gold-light">{joined.length}</div>
+            <div className="mt-6 text-[8rem] font-black leading-none text-gold-light">{joined.length}</div>
             <div className="text-3xl font-semibold">players in</div>
             <div className="mt-6 flex flex-wrap gap-2">
               {recent.map((n) => (
@@ -85,7 +85,7 @@ export default function Screen() {
             </div>
           </div>
         </div>
-        <img src="/diyas.jpg" alt="" className="absolute inset-x-0 bottom-0 h-[22vh] w-full object-cover object-top opacity-90" />
+        <img src="/diyas.jpg" alt="" className="absolute inset-x-0 bottom-0 h-[15vh] w-full object-cover object-top opacity-90" />
       </Frame>
     )
   }
@@ -95,6 +95,7 @@ export default function Screen() {
     return (
       <Frame className={urgent ? 'animate-danger-fast text-white' : 'bg-plum-dark text-white'}>
         {soundButton}
+        <EventTitle className="mb-8" />
         <div className="text-3xl font-bold text-white/70">Round {session.round} · {session.alive.length} players in</div>
         <Countdown ms={remaining} className="my-6 text-[16rem] text-white" />
         <div className="mb-4 text-3xl font-bold">💣 {bombs.length} {bombs.length === 1 ? 'bomb' : 'bombs'} in play</div>
@@ -113,6 +114,7 @@ export default function Screen() {
       <Frame className="bg-plum-dark text-white">
         {soundButton}
         <div key={session.round} className="blast-flash" />
+        <EventTitle className="mb-6" />
         <div key={`s${session.round}`} className="animate-shake flex flex-col items-center">
           <div className="text-[10rem] leading-none">💥</div>
           <h1 className="text-8xl font-black text-orange-400">BOOM!</h1>
@@ -129,14 +131,15 @@ export default function Screen() {
   }
 
   return (
-    <Frame className="bg-plum-dark text-cream">
+    <Frame className="bg-plum-dark pb-[17vh] text-cream">
       {soundButton}
+      <EventTitle className="mb-8" />
       <div className="text-[10rem] leading-none">🏆</div>
       <p className="mt-6 text-4xl text-cream/80">{session.winners.length > 1 ? 'Our winners are' : 'The winner is'}</p>
       <h1 className="animate-pop-in mt-4 text-center text-9xl font-black text-gold-light">{session.winners.map(label).join(' & ')}</h1>
       <p className="mt-8 text-3xl text-cream/70">Last one standing after {session.round} rounds!</p>
       <p className="mt-4 text-2xl font-semibold text-gold-light">Happy Diwali! 🪔</p>
-      <img src="/diyas.jpg" alt="" className="absolute inset-x-0 bottom-0 -z-0 h-[20vh] w-full object-cover object-top opacity-80" />
+      <img src="/diyas.jpg" alt="" className="absolute inset-x-0 bottom-0 h-[15vh] w-full object-cover object-top opacity-80" />
     </Frame>
   )
 }
