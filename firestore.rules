@@ -1,0 +1,78 @@
+rules_version = '2';
+
+// QTM Pass the Bomb. Players, the projector and the board sign in anonymously; the host signs in
+// with email/password and must have a document at /hosts/{uid} (created by hand in the Firebase console).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isHost() { return signedIn() && exists(/databases/$(database)/documents/hosts/$(request.auth.uid)); }
+    function session() { return get(/databases/$(database)/documents/session/current).data; }
+
+    match /hosts/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Single source of truth every screen listens to: status, countdown, roster, who is in and out.
+    match /session/{docId} {
+      allow read: if true;
+      allow write: if isHost();
+    }
+
+    // Used only to measure the gap between a device's clock and the server clock.
+    match /clock/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['t'])
+        && request.resource.data.t == request.time;
+    }
+
+    // players/{uid}: one per phone. The player writes their name; only the host hands out numbers.
+    match /players/{uid} {
+      function validJoin() {
+        let s = session();
+        let p = request.resource.data;
+        return signedIn() && request.auth.uid == uid
+          && s.registrationOpen == true
+          && p.keys().hasOnly(['sessionId', 'name', 'number', 'joinedAt'])
+          && p.sessionId == s.sessionId
+          && p.number == null
+          && p.name is string && p.name.size() > 0 && p.name.size() <= 20
+          && p.joinedAt == request.time;
+      }
+      allow read: if isHost() || (signedIn() && request.auth.uid == uid);
+      allow create: if validJoin();
+      // A phone from an earlier game can join the new one, but can't rename itself mid-game.
+      allow update: if isHost() || (validJoin() && resource.data.sessionId != session().sessionId);
+    }
+
+    // bombs/{sessionId}_{round}_{index}. Placed by the host; passed on by whoever holds it.
+    match /bombs/{id} {
+      function validPass() {
+        let s = session();
+        let me = get(/databases/$(database)/documents/players/$(request.auth.uid)).data;
+        let b = request.resource.data;
+        return signedIn()
+          && s.status == 'LIVE'
+          && resource.data.sessionId == s.sessionId
+          && resource.data.round == s.round
+          // The server clock decides: once the countdown hits zero, nobody can pass.
+          && request.time < s.explodesAt
+          && me.sessionId == s.sessionId
+          && me.number == resource.data.holder
+          // Must have held it for a moment (the phone waits 1s; this allows for clock jitter).
+          && request.time >= resource.data.receivedAt + duration.value(500, 'ms')
+          && b.diff(resource.data).affectedKeys().hasOnly(['holder', 'prevHolder', 'passes', 'receivedAt'])
+          && b.holder is int
+          && b.holder != resource.data.holder
+          && b.holder in s.alive
+          && b.prevHolder == resource.data.holder
+          && b.passes == resource.data.passes + 1
+          && b.receivedAt == request.time;
+      }
+      allow read: if true;
+      allow create: if isHost();
+      allow update: if validPass();
+    }
+  }
+}
