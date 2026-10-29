@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Countdown, Logo, Spinner } from '../components/Brand'
 import { celebrate } from '../lib/celebrate'
+import { EVENT } from '../lib/event'
 import { useAnonymousUser, useBombs, usePrevious, useRemaining, useSession, useWakeLock } from '../lib/hooks'
 import { REMOVED, type Session } from '../lib/types'
 
@@ -26,7 +27,7 @@ export default function Board() {
   }, [status, prevStatus])
 
   if (loading) return <div className="flex min-h-dvh items-center justify-center"><Spinner className="h-10 w-10" /></div>
-  if (!session) return <div className="flex min-h-dvh items-center justify-center text-xl text-maroon">No game yet.</div>
+  if (!session) return <div className="flex min-h-dvh items-center justify-center text-xl text-plum">No game yet.</div>
 
   const holders = new Set(status === 'LIVE' ? bombs.map((b) => b.holder) : [])
   const numbers = Object.keys(session.roster).map(Number).sort((a, b) => a - b)
@@ -41,11 +42,12 @@ export default function Board() {
   })
 
   return (
-    <div className="flex h-dvh flex-col bg-neutral-950 text-white">
-      <header className="flex flex-wrap items-center gap-x-6 gap-y-2 bg-maroon px-4 py-2.5 md:px-6">
+    <div className="flex h-dvh flex-col bg-plum-dark text-white">
+      <header className="flex flex-wrap items-center gap-x-6 gap-y-2 bg-plum px-4 py-2.5 md:px-6">
         <div className="flex items-center gap-2.5">
           <Logo className="h-9 w-9" />
           <span className="text-lg font-black md:text-2xl">💣 Pass the Bomb</span>
+          <span className="hidden text-sm font-semibold text-gold-light lg:inline">{EVENT.name} · {EVENT.hosts}</span>
         </div>
         <div className="flex items-center gap-4 text-lg font-bold md:text-2xl">
           <span>{session.status === 'LOBBY' ? 'Lobby' : session.status === 'FINISHED' ? 'Game over' : `Round ${session.round}`}</span>
@@ -58,7 +60,7 @@ export default function Board() {
         <div className="ml-auto flex items-center gap-2">
           {(['all', 'in', 'out'] as const).map((f) => (
             <button key={f} onClick={() => setFilter(f)}
-              className={`rounded-lg px-3 py-1 text-sm font-bold capitalize ${filter === f ? 'bg-cream text-maroon' : 'bg-white/10'}`}>
+              className={`rounded-lg px-3 py-1 text-sm font-bold capitalize ${filter === f ? 'bg-cream text-plum' : 'bg-white/10'}`}>
               {f}
             </button>
           ))}
@@ -76,7 +78,7 @@ export default function Board() {
         </div>
       )}
       {status === 'FINISHED' && (
-        <div className="bg-gold px-4 py-2 text-center text-xl font-black text-maroon-dark md:text-3xl">
+        <div className="bg-gold px-4 py-2 text-center text-xl font-black text-plum-dark md:text-3xl">
           🏆 Winner: {session.winners.map((n) => `#${n} ${session.roster[String(n)]}`).join(' & ')}
         </div>
       )}
@@ -136,7 +138,7 @@ function TileGrid({ numbers, session, holders }: { numbers: number[]; session: S
           const isIn = alive.has(n)
           const out = session.outRound[String(n)]
           let cls = 'bg-safe text-white'
-          if (winners.has(n)) cls = 'bg-gold text-maroon-dark ring-4 ring-gold-light scale-105 z-10'
+          if (winners.has(n)) cls = 'bg-gold text-plum-dark ring-4 ring-inset ring-gold-light'
           else if (isIn && holders.has(n)) cls = 'bg-danger text-white animate-holder'
           else if (justOut.has(n)) cls = 'bg-neutral-700 text-white/70 animate-shake'
           else if (!isIn) cls = 'bg-neutral-800 text-neutral-500'

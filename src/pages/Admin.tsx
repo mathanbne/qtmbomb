@@ -16,6 +16,7 @@ import {
   watchPendingPlayers,
 } from '../lib/api'
 import { syncClock } from '../lib/clock'
+import { EVENT } from '../lib/event'
 import { downloadText, resultsCsv } from '../lib/csv'
 import { auth, firebaseConfigured } from '../lib/firebase'
 import { bombCount, playerLabel } from '../lib/game'
@@ -49,8 +50,8 @@ export default function Admin() {
     return (
       <Shell>
         <div className="mx-auto max-w-md p-8 text-center">
-          <p className="font-semibold text-maroon">{user.email} isn't set up as a host.</p>
-          <p className="mt-2 text-sm text-maroon/70">Add a document at hosts/{user.uid} in Firestore (see README).</p>
+          <p className="font-semibold text-plum">{user.email} isn't set up as a host.</p>
+          <p className="mt-2 text-sm text-plum/70">Add a document at hosts/{user.uid} in Firestore (see README).</p>
           <button onClick={signOutHost} className="mt-4 underline">Sign out</button>
         </div>
       </Shell>
@@ -62,9 +63,9 @@ export default function Admin() {
 function Shell({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
     <div className="min-h-dvh">
-      <header className="flex items-center gap-3 bg-maroon px-5 py-3 text-cream">
+      <header className="flex items-center gap-3 bg-plum px-5 py-3 text-cream">
         <Logo className="h-9 w-9" />
-        <span className="flex-1 text-lg font-extrabold">QTM Pass the Bomb · Host</span>
+        <span className="flex-1 text-lg font-extrabold">Pass the Bomb · Host <span className="ml-2 text-sm font-semibold text-gold-light">{EVENT.name} · {EVENT.hosts}</span></span>
         {right}
       </header>
       {children}
@@ -93,13 +94,13 @@ function Login() {
 
   return (
     <form onSubmit={submit} className="mx-auto mt-16 flex max-w-sm flex-col gap-3 px-6">
-      <h1 className="text-2xl font-bold text-maroon">Host sign in</h1>
+      <h1 className="text-2xl font-bold text-plum">Host sign in</h1>
       <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" autoComplete="username"
-        className="rounded-lg border-2 border-maroon/20 px-3 py-2.5" />
+        className="rounded-lg border-2 border-plum/20 px-3 py-2.5" />
       <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" autoComplete="current-password"
-        className="rounded-lg border-2 border-maroon/20 px-3 py-2.5" />
+        className="rounded-lg border-2 border-plum/20 px-3 py-2.5" />
       {error && <p className="text-sm font-semibold text-red-700">{error}</p>}
-      <button disabled={busy} className="rounded-lg bg-maroon py-2.5 font-bold text-cream disabled:opacity-60">
+      <button disabled={busy} className="rounded-lg bg-plum py-2.5 font-bold text-cream disabled:opacity-60">
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
     </form>
@@ -179,7 +180,7 @@ function HostConsole({ uid }: { uid: string }) {
         <div className="mx-auto max-w-md p-8 text-center">
           {error && <p className="mb-4 text-red-700">{error}</p>}
           <p className="mb-4">No game has been set up yet.</p>
-          <button onClick={run(() => resetSession())} className="rounded-lg bg-maroon px-6 py-3 font-bold text-cream">Create game</button>
+          <button onClick={run(() => resetSession())} className="rounded-lg bg-plum px-6 py-3 font-bold text-cream">Create game</button>
         </div>
       </Shell>
     )
@@ -193,10 +194,10 @@ function HostConsole({ uid }: { uid: string }) {
           <Settings session={session} run={run} />
           <div className="flex flex-wrap gap-2 text-sm">
             {[['/screen', '📽 Projector screen'], ['/board', '📋 In / out board'], ['/poster', '🖨 QR poster']].map(([href, text]) => (
-              <a key={href} href={href} target="_blank" rel="noreferrer" className="rounded-lg bg-white px-3 py-2 font-semibold text-maroon shadow-sm">{text}</a>
+              <a key={href} href={href} target="_blank" rel="noreferrer" className="rounded-lg bg-white px-3 py-2 font-semibold text-plum shadow-sm">{text}</a>
             ))}
             <button onClick={() => downloadText(`pass-the-bomb-${session.sessionId}.csv`, resultsCsv(session))}
-              className="rounded-lg bg-white px-3 py-2 font-semibold text-maroon shadow-sm">⬇ Export results</button>
+              className="rounded-lg bg-white px-3 py-2 font-semibold text-plum shadow-sm">⬇ Export results</button>
             <button
               onClick={() => confirm('Start a brand-new game? Everyone will need to join again.') && run(() => resetSession(session))()}
               className="rounded-lg bg-white px-3 py-2 font-semibold text-red-700 shadow-sm">Reset…</button>
@@ -242,10 +243,10 @@ function RoundPanel({ session, bombs, now, pending, run }: {
   return (
     <section className="rounded-2xl bg-white p-5 shadow-sm">
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-xl font-black text-maroon">
+        <h2 className="text-xl font-black text-plum">
           {status === 'LOBBY' ? 'Lobby' : status === 'FINISHED' ? 'Game over' : `Round ${round}`}
         </h2>
-        <span className="text-sm font-semibold text-maroon/70">{alive.length} in · {Object.keys(roster).length} joined</span>
+        <span className="text-sm font-semibold text-plum/70">{alive.length} in · {Object.keys(roster).length} joined</span>
       </div>
 
       {status === 'LOBBY' && (
@@ -255,19 +256,19 @@ function RoundPanel({ session, bombs, now, pending, run }: {
               onChange={(e) => run(() => setRegistration(e.target.checked))()} />
             Joining is {session.registrationOpen ? 'open' : 'closed'}
           </label>
-          {pending > 0 && <p className="text-sm text-maroon/70">Giving numbers to {pending} new {pending === 1 ? 'player' : 'players'}…</p>}
+          {pending > 0 && <p className="text-sm text-plum/70">Giving numbers to {pending} new {pending === 1 ? 'player' : 'players'}…</p>}
           {startButton}
-          <p className="text-sm text-maroon/60">Starting round 1 closes joining.</p>
+          <p className="text-sm text-plum/60">Starting round 1 closes joining.</p>
         </div>
       )}
 
       {status === 'LIVE' && (
         <div>
           <div className="flex items-center gap-6">
-            <Countdown ms={Math.max(0, (session.explodesAt?.toMillis() ?? 0) - now)} className="text-6xl text-maroon" />
-            {(session.explodesAt?.toMillis() ?? 0) <= now && <span className="font-semibold text-maroon/70">Setting off the bombs…</span>}
+            <Countdown ms={Math.max(0, (session.explodesAt?.toMillis() ?? 0) - now)} className="text-6xl text-plum" />
+            {(session.explodesAt?.toMillis() ?? 0) <= now && <span className="font-semibold text-plum/70">Setting off the bombs…</span>}
           </div>
-          <p className="mt-2 text-sm text-maroon/70">Keep this tab open: it sets off the bombs when the timer runs out.</p>
+          <p className="mt-2 text-sm text-plum/70">Keep this tab open: it sets off the bombs when the timer runs out.</p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {bombs.map((b, i) => (
               <span key={i} className="rounded-full bg-red-50 px-2.5 py-1 text-sm font-semibold text-red-800">
@@ -282,7 +283,7 @@ function RoundPanel({ session, bombs, now, pending, run }: {
         <div className="space-y-4">
           <Eliminated session={session} />
           {startButton}
-          {session.autoAdvance && <p className="text-sm text-maroon/70">Auto-advance is on: the next round starts in a few seconds.</p>}
+          {session.autoAdvance && <p className="text-sm text-plum/70">Auto-advance is on: the next round starts in a few seconds.</p>}
         </div>
       )}
 
@@ -291,7 +292,7 @@ function RoundPanel({ session, bombs, now, pending, run }: {
           <Eliminated session={session} />
           <div className="rounded-xl bg-gold-light p-4 text-center">
             <div className="text-4xl">🏆</div>
-            <div className="text-2xl font-black text-maroon">{session.winners.map(label).join(' & ')}</div>
+            <div className="text-2xl font-black text-plum">{session.winners.map(label).join(' & ')}</div>
           </div>
         </div>
       )}
@@ -300,7 +301,7 @@ function RoundPanel({ session, bombs, now, pending, run }: {
 }
 
 function Eliminated({ session }: { session: Session }) {
-  if (session.eliminatedThisRound.length === 0) return <p className="text-maroon/70">Nobody was knocked out in round {session.round}.</p>
+  if (session.eliminatedThisRound.length === 0) return <p className="text-plum/70">Nobody was knocked out in round {session.round}.</p>
   return (
     <div>
       <p className="mb-1.5 font-semibold">💥 Out in round {session.round}:</p>
@@ -321,7 +322,7 @@ function Settings({ session, run }: { session: Session; run: Run }) {
         <span className="font-semibold">Timer</span>
         {DURATIONS.map((d) => (
           <button key={d} disabled={locked} onClick={run(() => updateSettings({ durationSec: d }))}
-            className={`rounded-lg px-4 py-2 font-bold disabled:opacity-50 ${session.durationSec === d ? 'bg-maroon text-cream' : 'bg-cream text-maroon'}`}>
+            className={`rounded-lg px-4 py-2 font-bold disabled:opacity-50 ${session.durationSec === d ? 'bg-plum text-cream' : 'bg-cream text-plum'}`}>
             {d}s
           </button>
         ))}
@@ -333,7 +334,7 @@ function Settings({ session, run }: { session: Session; run: Run }) {
             const v = Math.round(Number(e.target.value))
             if (v >= 2 && v <= 50) run(() => updateSettings({ bombRatio: v }))()
           }}
-          className="w-16 rounded-lg border-2 border-maroon/20 px-2 py-1.5 text-center font-bold" />
+          className="w-16 rounded-lg border-2 border-plum/20 px-2 py-1.5 text-center font-bold" />
         <span className="font-semibold">players</span>
       </label>
       <label className="flex items-center gap-2 font-semibold">
@@ -356,11 +357,11 @@ function PlayerList({ session, holders, run }: { session: Session; holders: numb
   return (
     <section className="flex max-h-[calc(100dvh-7rem)] flex-col rounded-2xl bg-white p-4 shadow-sm">
       <div className="mb-2 flex items-center gap-2">
-        <h2 className="flex-1 text-lg font-black text-maroon">Players ({numbers.length})</h2>
+        <h2 className="flex-1 text-lg font-black text-plum">Players ({numbers.length})</h2>
         <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search"
-          className="w-32 rounded-lg border-2 border-maroon/20 px-2 py-1 text-sm" />
+          className="w-32 rounded-lg border-2 border-plum/20 px-2 py-1 text-sm" />
       </div>
-      <ul className="flex-1 divide-y divide-maroon/10 overflow-y-auto">
+      <ul className="flex-1 divide-y divide-plum/10 overflow-y-auto">
         {shown.map((n) => {
           const out = session.outRound[String(n)]
           const isIn = alive.has(n)

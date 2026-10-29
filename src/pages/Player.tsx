@@ -6,7 +6,9 @@ import { celebrate } from '../lib/celebrate'
 import { firebaseConfigured } from '../lib/firebase'
 import { playerLabel } from '../lib/game'
 import { useAnonymousUser, useBombs, useOnline, usePrevious, useRemaining, useSession, useWakeLock, vibrate } from '../lib/hooks'
-import { audioReady, audioState, sounds, unlockAudio } from '../lib/sound'
+import { SoundToggle } from '../components/SoundToggle'
+import { EVENT } from '../lib/event'
+import { setMuted, sounds, unlockAudio } from '../lib/sound'
 import { REMOVED, type PlayerDoc, type Session } from '../lib/types'
 
 /** How long you must hold a bomb before PASS works, so you hear the alarm and it can't bounce straight back. */
@@ -40,7 +42,7 @@ export default function Player() {
           <>
             New players can't join once the bombs are out.
             <br />
-            <Link to="/board" className="mt-3 inline-block font-bold text-maroon underline">👀 Watch the board</Link>
+            <Link to="/board" className="mt-3 inline-block font-bold text-plum underline">👀 Watch the board</Link>
           </>
         ) : (
           'Keep this page open. It will let you join as soon as the host opens the game.'
@@ -84,6 +86,7 @@ function JoinForm({ sessionId, uid }: { sessionId: string; uid: string }) {
     e.preventDefault()
     const clean = name.trim().replace(/\s+/g, ' ')
     if (!clean) return
+    setMuted(false)
     void unlockAudio() // must start inside the tap
     setBusy(true)
     setError(null)
@@ -97,52 +100,34 @@ function JoinForm({ sessionId, uid }: { sessionId: string; uid: string }) {
   }
 
   return (
-    <form onSubmit={submit} className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-4 px-6 py-10">
-      <div className="text-center text-7xl">💣</div>
-      <h1 className="text-center text-3xl font-black text-maroon">Pass the Bomb</h1>
-      <p className="text-center text-maroon/70">If the bomb lands on you, pass it on fast. If you're holding it when the timer hits zero, you're out!</p>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        maxLength={20}
-        placeholder="Your first name"
-        autoComplete="given-name"
-        className="rounded-xl border-2 border-maroon/20 bg-white px-4 py-3 text-center text-xl font-semibold outline-none focus:border-maroon"
-      />
-      {error && <p className="text-center text-sm font-semibold text-red-700">{error}</p>}
-      <button disabled={busy || !name.trim()} className="rounded-xl bg-maroon py-4 text-xl font-black text-cream disabled:opacity-50">
-        {busy ? 'Joining…' : 'Join'}
-      </button>
-      <p className="text-center text-sm text-maroon/60">🔊 Turn your volume up and silent mode off.</p>
+    <form onSubmit={submit} className="flex flex-1 flex-col bg-plum-dark text-cream">
+      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-4 px-6 py-8">
+        <p className="text-center text-sm font-semibold uppercase tracking-[0.25em] text-gold-light">{EVENT.name} · {EVENT.hosts}</p>
+        <div className="text-center text-7xl">💣</div>
+        <h1 className="text-center font-serif text-4xl font-bold text-gold-light">Pass the Bomb</h1>
+        <p className="text-center text-cream/80">If the bomb lands on you, pass it on fast. If you're holding it when the timer hits zero, you're out!</p>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={20}
+          placeholder="Your first name"
+          autoComplete="given-name"
+          className="rounded-xl border-2 border-gold/40 bg-white px-4 py-3 text-center text-xl font-semibold text-plum-dark outline-none focus:border-gold"
+        />
+        {error && <p className="text-center text-sm font-semibold text-red-300">{error}</p>}
+        <button disabled={busy || !name.trim()} className="rounded-xl bg-gold py-4 text-xl font-black text-plum-dark disabled:opacity-50">
+          {busy ? 'Joining…' : 'Join'}
+        </button>
+        <p className="text-center text-sm text-cream/70">🔊 Turn your volume up and silent mode off.</p>
+      </div>
+      <img src="/diyas.jpg" alt="" className="h-28 w-full object-cover object-top" />
     </form>
   )
-}
-
-/** Shows a "tap for sound" button when the browser has suspended audio (e.g. after a reload). */
-function useSoundOn() {
-  const [on, setOn] = useState(audioReady())
-  const [state, setState] = useState(audioState())
-  useEffect(() => {
-    const t = setInterval(() => {
-      setOn(audioReady())
-      setState(audioState())
-    }, 1000)
-    return () => clearInterval(t)
-  }, [])
-  const enable = () => {
-    void unlockAudio().then(() => {
-      setOn(audioReady())
-      setState(audioState())
-      if (audioReady()) sounds.start() // a beep so you know it worked
-    })
-  }
-  return { on, state, enable }
 }
 
 function Game({ session, number, name, online }: { session: Session; number: number; name: string; online: boolean }) {
   const bombs = useBombs(session)
   const remaining = useRemaining(session)
-  const sound = useSoundOn()
   const [passing, setPassing] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const arrivals = useRef(new Map<string, number>())
@@ -223,10 +208,10 @@ function Game({ session, number, name, online }: { session: Session; number: num
   const playersLeft = session.alive.length
   const bombsInPlay = live ? session.bombCount : 0
 
-  let bg = 'bg-cream text-maroon-dark'
+  let bg = 'bg-plum-dark text-cream'
   let content: ReactNode
   if (won) {
-    bg = 'bg-gold text-maroon-dark'
+    bg = 'bg-gold text-plum-dark'
     content = (
       <Center>
         <div className="text-8xl">🏆</div>
@@ -236,7 +221,7 @@ function Game({ session, number, name, online }: { session: Session; number: num
       </Center>
     )
   } else if (status === 'FINISHED') {
-    bg = 'bg-maroon text-cream'
+    bg = 'bg-plum text-cream'
     content = (
       <Center>
         <div className="text-6xl">🏆</div>
@@ -310,33 +295,34 @@ function Game({ session, number, name, online }: { session: Session; number: num
       </Center>
     )
   } else {
+    bg = 'bg-plum-dark text-cream'
     content = (
-      <Center>
-        <p className="text-lg font-semibold">You're in, {name}!</p>
-        <div className="animate-pop-in text-[7rem] font-black leading-none text-maroon">#{number}</div>
-        <p className="text-maroon/70">Waiting for the host to start…</p>
-        <p className="text-sm text-maroon/60">{playersLeft} players joined</p>
-        <ul className="mt-4 space-y-1 text-left text-sm text-maroon/80">
-          <li>💣 Bombs land on random players.</li>
-          <li>👆 Got one? Tap <b>PASS</b> to throw it to someone else.</li>
-          <li>💥 Holding a bomb when the timer hits zero? You're out.</li>
-          <li>🏆 Last player standing wins!</li>
-        </ul>
-      </Center>
+      <>
+        <Center>
+          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-gold-light">{EVENT.name} · {EVENT.hosts}</p>
+          <p className="text-lg font-semibold">You're in, {name}!</p>
+          <div className="animate-pop-in text-[7rem] font-black leading-none text-gold-light">#{number}</div>
+          <p className="text-cream/80">Waiting for the host to start…</p>
+          <p className="text-sm text-cream/60">{playersLeft} players joined</p>
+          <ul className="mt-4 space-y-1 text-left text-sm text-cream/85">
+            <li>💣 Bombs land on random players.</li>
+            <li>👆 Got one? Tap <b>PASS</b> to throw it to someone else.</li>
+            <li>💥 Holding a bomb when the timer hits zero? You're out.</li>
+            <li>🏆 Last player standing wins!</li>
+          </ul>
+        </Center>
+        <img src="/diyas.jpg" alt="" className="h-24 w-full object-cover object-top" />
+      </>
     )
   }
 
   return (
     <div className={`flex min-h-dvh flex-col transition-colors ${bg}`}>
       <header className="flex items-center gap-2 bg-black/20 px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] text-sm font-semibold text-white">
-        <span className="rounded-full bg-white/90 px-2.5 py-0.5 font-black text-maroon">#{number}</span>
+        <span className="rounded-full bg-white/90 px-2.5 py-0.5 font-black text-plum">#{number}</span>
         <span className="flex-1 truncate">{name}</span>
         {round > 0 && <span>Round {round}</span>}
-        {!sound.on && (
-          <button onClick={sound.enable} className="rounded-full bg-white px-3 py-1 font-bold text-maroon">
-            🔇 Tap for sound{sound.state !== 'suspended' && sound.state !== 'running' ? ` (${sound.state})` : ''}
-          </button>
-        )}
+        <SoundToggle />
       </header>
       {!online && <OfflineBar />}
       {content}
@@ -371,7 +357,7 @@ function RoundInfo({ session, remaining, playersLeft }: { session: Session; rema
 
 function WatchBoard({ dark = false }: { dark?: boolean }) {
   return (
-    <Link to="/board" className={`mt-4 rounded-full px-6 py-3 font-bold ${dark ? 'bg-white text-neutral-900' : 'bg-maroon text-cream'}`}>
+    <Link to="/board" className={`mt-4 rounded-full px-6 py-3 font-bold ${dark ? 'bg-white text-neutral-900' : 'bg-plum text-cream'}`}>
       👀 Watch the board
     </Link>
   )

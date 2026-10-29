@@ -1,15 +1,18 @@
 import type { ReactNode } from 'react'
+import { EVENT } from '../lib/event'
 
+/** Diya emblem (also the favicon and app icon). */
 export function Logo({ className = 'h-10 w-10' }: { className?: string }) {
-  return <img src="/logo.png" alt="QTM" className={`${className} rounded-full bg-white object-contain`} />
+  return <img src="/logo.png" alt="" className={`${className} rounded-[22%] object-contain`} />
 }
 
 export function Header({ right }: { right?: ReactNode }) {
   return (
-    <header className="flex items-center gap-2.5 bg-maroon px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-cream">
+    <header className="flex items-center gap-2.5 bg-plum px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-cream">
       <Logo className="h-9 w-9" />
       <div className="flex-1 leading-tight">
-        <div className="text-base font-extrabold tracking-wide">QTM Pass the Bomb 💣</div>
+        <div className="text-base font-extrabold tracking-wide">Pass the Bomb 💣</div>
+        <div className="text-xs font-semibold text-gold-light">{EVENT.name} · {EVENT.hosts}</div>
       </div>
       {right}
     </header>
@@ -17,14 +20,14 @@ export function Header({ right }: { right?: ReactNode }) {
 }
 
 export function Spinner({ className = 'h-6 w-6' }: { className?: string }) {
-  return <div className={`${className} animate-spin rounded-full border-[3px] border-maroon/20 border-t-maroon`} />
+  return <div className={`${className} animate-spin rounded-full border-[3px] border-plum/20 border-t-plum`} />
 }
 
 export function CenteredMessage({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-      <h2 className="text-xl font-bold text-maroon">{title}</h2>
-      {children && <div className="text-maroon/70">{children}</div>}
+      <h2 className="text-xl font-bold text-plum">{title}</h2>
+      {children && <div className="text-plum/70">{children}</div>}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import confetti from 'canvas-confetti'
 
-const COLORS = ['#800020', '#d4a017', '#f5d76e', '#ffffff']
+const COLORS = ['#d9a441', '#f6d58e', '#c0569b', '#ff8c1e', '#ffffff']
 
 export function celebrate(big = false) {
   const burst = (x: number) =>

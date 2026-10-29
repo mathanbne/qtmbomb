@@ -4,6 +4,32 @@
 let ctx: AudioContext | null = null
 let master: GainNode | null = null
 
+const VOLUME = 0.9
+const MUTE_KEY = 'bomb-muted'
+
+function loadMuted() {
+  try {
+    return localStorage.getItem(MUTE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+let muted = loadMuted()
+
+/** Remembered on this device, so a reload keeps the choice. */
+export function setMuted(m: boolean) {
+  muted = m
+  if (master) master.gain.value = m ? 0 : VOLUME
+  try {
+    localStorage.setItem(MUTE_KEY, m ? '1' : '0')
+  } catch {
+    // ignore: private mode
+  }
+}
+
+export const isMuted = () => muted
+
 /**
  * Call from inside a tap. Never throws: a phone without Web Audio still has to be able to join and play (silently).
  * Resolves once the browser has (or hasn't) let the audio start.
@@ -18,7 +44,7 @@ export async function unlockAudio(): Promise<void> {
       if (!Ctor) return
       ctx = new Ctor()
       master = ctx.createGain()
-      master.gain.value = 0.9
+      master.gain.value = muted ? 0 : VOLUME
       master.connect(ctx.destination)
     }
     // A silent blip inside the tap is what actually unlocks iOS. It must happen before any await.

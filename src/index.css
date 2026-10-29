@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 @theme {
-  --color-maroon: #800020;
-  --color-maroon-dark: #5c0017;
-  --color-gold: #d4a017;
-  --color-gold-light: #f5d76e;
-  --color-cream: #fff8ec;
+  --color-plum: #4b0f5c;
+  --color-plum-dark: #2a0636;
+  --color-gold: #d9a441;
+  --color-gold-light: #f6d58e;
+  --color-cream: #fdf4e7;
   --color-safe: #16a34a;
   --color-danger: #dc2626;
 }
@@ -18,7 +18,7 @@ body,
 
 body {
   background: var(--color-cream);
-  color: #2b0a12;
+  color: #2a0636;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
 }
