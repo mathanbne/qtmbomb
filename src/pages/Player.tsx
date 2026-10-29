@@ -89,8 +89,9 @@ function JoinForm({ sessionId, uid }: { sessionId: string; uid: string }) {
     setError(null)
     try {
       await joinSession(sessionId, uid, clean)
-    } catch {
-      setError("Couldn't join. Joining may have just closed. Try again.")
+    } catch (e) {
+      const code = (e as { code?: string }).code ?? (e instanceof Error ? e.message : '')
+      setError(`Couldn't join. Joining may have just closed. Try again. (${code})`)
       setBusy(false)
     }
   }

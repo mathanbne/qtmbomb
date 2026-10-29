@@ -4,19 +4,26 @@
 let ctx: AudioContext | null = null
 let master: GainNode | null = null
 
+/** Never throws: a phone without Web Audio still has to be able to join and play (silently). */
 export function unlockAudio() {
-  if (!ctx) {
-    ctx = new AudioContext()
-    master = ctx.createGain()
-    master.gain.value = 0.9
-    master.connect(ctx.destination)
+  try {
+    if (!ctx) {
+      const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (!Ctor) return
+      ctx = new Ctor()
+      master = ctx.createGain()
+      master.gain.value = 0.9
+      master.connect(ctx.destination)
+    }
+    if (ctx.state === 'suspended') void ctx.resume().catch(() => {})
+    // A silent blip inside the tap is what actually unlocks iOS.
+    const src = ctx.createBufferSource()
+    src.buffer = ctx.createBuffer(1, 1, 22050)
+    src.connect(master!)
+    src.start()
+  } catch {
+    // No sound on this device; the game still works.
   }
-  if (ctx.state === 'suspended') void ctx.resume()
-  // A silent blip inside the tap is what actually unlocks iOS.
-  const src = ctx.createBufferSource()
-  src.buffer = ctx.createBuffer(1, 1, 22050)
-  src.connect(master!)
-  src.start()
 }
 
 export const audioReady = () => ctx?.state === 'running'
