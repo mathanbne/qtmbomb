@@ -50,9 +50,9 @@ export default function Screen() {
     return (
       <Frame className="bg-plum-dark text-cream">
         {soundButton}
+        <EventTitle className="mb-10" />
         <Logo className="h-32 w-32" />
         <h1 className="mt-6 font-serif text-7xl font-bold text-gold-light">Pass the Bomb</h1>
-        <p className="mt-4 text-3xl text-cream/80">{EVENT.name} · {EVENT.hosts}</p>
       </Frame>
     )
   }
@@ -65,7 +65,7 @@ export default function Screen() {
     return (
       <Frame className="bg-plum-dark text-cream">
         {soundButton}
-        <p className="mb-10 text-3xl font-semibold uppercase tracking-[0.3em] text-gold-light">🪔 {EVENT.name} · {EVENT.hosts} 🪔</p>
+        <EventTitle className="mb-10" />
         <div className="grid w-full max-w-7xl grid-cols-[auto_1fr] items-center gap-16 px-12">
           <div className="text-center">
             <div className="rounded-3xl border-8 border-gold bg-white p-6">
@@ -138,6 +138,25 @@ export default function Screen() {
       <p className="mt-4 text-2xl font-semibold text-gold-light">Happy Diwali! 🪔</p>
       <img src="/diyas.jpg" alt="" className="absolute inset-x-0 bottom-0 -z-0 h-[20vh] w-full object-cover object-top opacity-80" />
     </Frame>
+  )
+}
+
+/** "Diwali Celebration 2026" in glowing gold, hosts underneath. */
+function EventTitle({ className = '' }: { className?: string }) {
+  return (
+    <div className={`text-center ${className}`}>
+      <h2 className="font-serif text-7xl font-bold tracking-wide">
+        🪔{' '}
+        <span
+          className="bg-gradient-to-b from-[#fff3c4] via-gold-light to-gold bg-clip-text text-transparent"
+          style={{ filter: 'drop-shadow(0 0 18px rgba(246, 213, 142, 0.55))' }}
+        >
+          {EVENT.title}
+        </span>{' '}
+        🪔
+      </h2>
+      <p className="mt-3 text-4xl font-semibold text-cream">{EVENT.hostsFull}</p>
+    </div>
   )
 }
 
