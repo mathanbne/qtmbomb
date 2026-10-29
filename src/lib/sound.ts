@@ -4,9 +4,15 @@
 let ctx: AudioContext | null = null
 let master: GainNode | null = null
 
-/** Never throws: a phone without Web Audio still has to be able to join and play (silently). */
-export function unlockAudio() {
+/**
+ * Call from inside a tap. Never throws: a phone without Web Audio still has to be able to join and play (silently).
+ * Resolves once the browser has (or hasn't) let the audio start.
+ */
+export async function unlockAudio(): Promise<void> {
   try {
+    // iOS 17+: play like a media app, so the ring/silent switch doesn't mute the game.
+    const nav = navigator as Navigator & { audioSession?: { type: string } }
+    if (nav.audioSession) nav.audioSession.type = 'playback'
     if (!ctx) {
       const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
       if (!Ctor) return
@@ -15,18 +21,22 @@ export function unlockAudio() {
       master.gain.value = 0.9
       master.connect(ctx.destination)
     }
-    if (ctx.state === 'suspended') void ctx.resume().catch(() => {})
-    // A silent blip inside the tap is what actually unlocks iOS.
+    // A silent blip inside the tap is what actually unlocks iOS. It must happen before any await.
     const src = ctx.createBufferSource()
     src.buffer = ctx.createBuffer(1, 1, 22050)
     src.connect(master!)
     src.start()
+    // iOS uses "interrupted" as well as "suspended" (e.g. after the phone was locked).
+    if (ctx.state !== 'running') await ctx.resume()
   } catch {
     // No sound on this device; the game still works.
   }
 }
 
 export const audioReady = () => ctx?.state === 'running'
+
+/** For the "tap for sound" button, so a stuck state is visible. */
+export const audioState = () => (ctx ? ctx.state : 'none')
 
 function tone(freq: number, at: number, dur: number, opts: { type?: OscillatorType; gain?: number; to?: number } = {}) {
   if (!ctx || !master) return

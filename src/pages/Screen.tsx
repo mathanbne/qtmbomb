@@ -45,7 +45,7 @@ export default function Screen() {
   const soundButton = (
     <button
       onClick={() => {
-        if (!soundOn) unlockAudio()
+        if (!soundOn) void unlockAudio()
         setSoundOn(!soundOn)
       }}
       className="fixed right-4 top-4 z-40 rounded-full bg-black/30 px-4 py-2 text-sm font-semibold text-white"

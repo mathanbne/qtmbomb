@@ -6,7 +6,7 @@ import { celebrate } from '../lib/celebrate'
 import { firebaseConfigured } from '../lib/firebase'
 import { playerLabel } from '../lib/game'
 import { useAnonymousUser, useBombs, useOnline, usePrevious, useRemaining, useSession, useWakeLock, vibrate } from '../lib/hooks'
-import { audioReady, sounds, unlockAudio } from '../lib/sound'
+import { audioReady, audioState, sounds, unlockAudio } from '../lib/sound'
 import { REMOVED, type PlayerDoc, type Session } from '../lib/types'
 
 /** How long you must hold a bomb before PASS works, so you hear the alarm and it can't bounce straight back. */
@@ -84,7 +84,7 @@ function JoinForm({ sessionId, uid }: { sessionId: string; uid: string }) {
     e.preventDefault()
     const clean = name.trim().replace(/\s+/g, ' ')
     if (!clean) return
-    unlockAudio() // must happen inside the tap
+    void unlockAudio() // must start inside the tap
     setBusy(true)
     setError(null)
     try {
@@ -121,15 +121,22 @@ function JoinForm({ sessionId, uid }: { sessionId: string; uid: string }) {
 /** Shows a "tap for sound" button when the browser has suspended audio (e.g. after a reload). */
 function useSoundOn() {
   const [on, setOn] = useState(audioReady())
+  const [state, setState] = useState(audioState())
   useEffect(() => {
-    const t = setInterval(() => setOn(audioReady()), 1000)
+    const t = setInterval(() => {
+      setOn(audioReady())
+      setState(audioState())
+    }, 1000)
     return () => clearInterval(t)
   }, [])
   const enable = () => {
-    unlockAudio()
-    setTimeout(() => setOn(audioReady()), 200)
+    void unlockAudio().then(() => {
+      setOn(audioReady())
+      setState(audioState())
+      if (audioReady()) sounds.start() // a beep so you know it worked
+    })
   }
-  return { on, enable }
+  return { on, state, enable }
 }
 
 function Game({ session, number, name, online }: { session: Session; number: number; name: string; online: boolean }) {
@@ -326,7 +333,9 @@ function Game({ session, number, name, online }: { session: Session; number: num
         <span className="flex-1 truncate">{name}</span>
         {round > 0 && <span>Round {round}</span>}
         {!sound.on && (
-          <button onClick={sound.enable} className="rounded-full bg-white px-3 py-1 font-bold text-maroon">🔇 Tap for sound</button>
+          <button onClick={sound.enable} className="rounded-full bg-white px-3 py-1 font-bold text-maroon">
+            🔇 Tap for sound{sound.state !== 'suspended' && sound.state !== 'running' ? ` (${sound.state})` : ''}
+          </button>
         )}
       </header>
       {!online && <OfflineBar />}
