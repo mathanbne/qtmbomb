@@ -4,6 +4,7 @@ import { Countdown, Logo, Spinner } from '../components/Brand'
 import {
   assignNumbers,
   explodeRound,
+  fuseBlast,
   isHost,
   removePlayer,
   resetSession,
@@ -19,12 +20,14 @@ import { syncClock } from '../lib/clock'
 import { EVENT } from '../lib/event'
 import { downloadText, resultsCsv } from '../lib/csv'
 import { auth, firebaseConfigured } from '../lib/firebase'
-import { bombCount, playerLabel } from '../lib/game'
+import { bombCount, fuseExpired, playerLabel } from '../lib/game'
 import { useBombs, useServerNow, useSession } from '../lib/hooks'
-import { DURATIONS, REMOVED, type Session } from '../lib/types'
+import { DURATIONS, FUSE_MS, REMOVED, RETIRED, type Session } from '../lib/types'
 
 /** Wait this long after zero before reading the bombs, so passes made just before zero have landed. */
 const EXPLODE_GRACE_MS = 1000
+/** Wait this long after a fuse runs out, so a pass made just in time has landed. */
+const FUSE_GRACE_MS = 400
 /** Break between rounds when auto-advance is on. */
 const AUTO_ADVANCE_MS = 8000
 
@@ -159,6 +162,22 @@ function HostConsole({ uid }: { uid: string }) {
     })
   }, [now, explodesAt, roundKey, fail])
 
+  // A bomb that sits on one player for the whole fuse blows up on them and jumps to someone else.
+  const fused = useRef(new Set<string>())
+  useEffect(() => {
+    if (explodesAt === null || now >= explodesAt) return
+    for (const b of bombs) {
+      const key = `${b.id}:${b.passes}`
+      if (b.holder === RETIRED || fused.current.has(key)) continue
+      if (!fuseExpired(b.receivedAt?.toMillis() ?? null, now - FUSE_GRACE_MS)) continue
+      fused.current.add(key)
+      fuseBlast(b.id, b.passes).catch((e) => {
+        fused.current.delete(key) // retry on the next tick
+        fail(e)
+      })
+    }
+  }, [now, explodesAt, bombs, fail])
+
   // Auto-advance to the next round after a short break.
   const autoAdvanceDue = session?.status === 'EXPLODED' && session.autoAdvance && advanced.current !== roundKey
   useEffect(() => {
@@ -270,12 +289,22 @@ function RoundPanel({ session, bombs, now, pending, run }: {
           </div>
           <p className="mt-2 text-sm text-plum/70">Keep this tab open: it sets off the bombs when the timer runs out.</p>
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {bombs.map((b, i) => (
+            {bombs.filter((b) => b.holder !== RETIRED).map((b, i) => (
               <span key={i} className="rounded-full bg-red-50 px-2.5 py-1 text-sm font-semibold text-red-800">
                 💣 {label(b.holder)} <span className="text-red-800/50">· {b.passes} passes</span>
               </span>
             ))}
           </div>
+          {session.eliminatedThisRound.length > 0 && (
+            <div className="mt-3">
+              <p className="mb-1.5 text-sm font-semibold">💥 Held it longer than {FUSE_MS / 1000}s:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {session.eliminatedThisRound.map((n) => (
+                  <span key={n} className="rounded-full bg-neutral-200 px-2.5 py-1 text-sm font-semibold">{label(n)}</span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

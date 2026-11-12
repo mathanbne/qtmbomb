@@ -1,5 +1,5 @@
 import { QRCodeSVG } from 'qrcode.react'
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Countdown, Logo } from '../components/Brand'
 import { SoundToggle } from '../components/SoundToggle'
 import { celebrate } from '../lib/celebrate'
@@ -8,6 +8,7 @@ import { playerLabel } from '../lib/game'
 import { useAnonymousUser, useBombs, usePrevious, useRemaining, useSession, useWakeLock } from '../lib/hooks'
 import { EVENT } from '../lib/event'
 import { sounds } from '../lib/sound'
+import { RETIRED } from '../lib/types'
 
 /** Projector page: join QR in the lobby, then the countdown, the bombs and the blasts. */
 export default function Screen() {
@@ -33,6 +34,22 @@ export default function Screen() {
     }, 1500)
     return () => clearTimeout(t)
   }, [status, prevStatus])
+
+  // A fuse ran out mid-round: blast on the big speakers and flash the name.
+  const outCount = session?.status === 'LIVE' ? session.eliminatedThisRound.length : 0
+  const prevOutCount = usePrevious(outCount)
+  const latestOut = session?.eliminatedThisRound[outCount - 1] ?? null
+  const [fuseVictim, setFuseVictim] = useState<number | null>(null)
+  useEffect(() => {
+    if (prevOutCount === undefined || outCount <= prevOutCount) return
+    sounds.blast()
+    setFuseVictim(latestOut)
+  }, [outCount, prevOutCount, latestOut])
+  useEffect(() => {
+    if (fuseVictim === null) return
+    const t = setTimeout(() => setFuseVictim(null), 2000)
+    return () => clearTimeout(t)
+  }, [fuseVictim, outCount])
 
   // Ticking on the big speakers: every second, then four times a second at the end.
   const urgent = remaining > 0 && remaining <= 5000
@@ -91,14 +108,20 @@ export default function Screen() {
   }
 
   if (session.status === 'LIVE') {
-    const holders = bombs.map((b) => b.holder)
+    const holders = bombs.map((b) => b.holder).filter((h) => h !== RETIRED)
     return (
       <Frame className={urgent ? 'animate-danger-fast text-white' : 'bg-plum-dark text-white'}>
         {soundButton}
         <EventTitle className="mb-8" />
         <div className="text-3xl font-bold text-white/70">Round {session.round} · {session.alive.length} players in</div>
         <Countdown ms={remaining} className="my-6 text-[16rem] text-white" />
-        <div className="mb-4 text-3xl font-bold">💣 {bombs.length} {bombs.length === 1 ? 'bomb' : 'bombs'} in play</div>
+        <div className="mb-4 text-3xl font-bold">💣 {holders.length} {holders.length === 1 ? 'bomb' : 'bombs'} in play · pass within 3s!</div>
+        {fuseVictim !== null && (
+          <>
+            <div key={`f${outCount}`} className="blast-flash" />
+            <div key={`v${outCount}`} className="animate-shake mb-4 rounded-full bg-orange-500 px-8 py-3 text-4xl font-black">💥 {label(fuseVictim)} held it too long!</div>
+          </>
+        )}
         <div className="flex max-w-7xl flex-wrap justify-center gap-3 px-8">
           {holders.map((h, i) => (
             <span key={i} className="animate-holder rounded-full bg-danger px-5 py-2 text-2xl font-black">💣 {label(h)}</span>

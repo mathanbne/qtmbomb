@@ -15,9 +15,9 @@ import {
 import { signInAnonymously, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth'
 import { serverNow } from './clock'
 import { auth, db } from './firebase'
-import { bombCount, pickPassTarget, placeBombs, resolveExplosion } from './game'
+import { bombCount, pickPassTarget, placeBombs, resolveExplosion, resolveFuseBlast } from './game'
 import { newId } from './ids'
-import { DEFAULT_BOMB_RATIO, REMOVED, type Bomb, type PlayerDoc, type Session } from './types'
+import { DEFAULT_BOMB_RATIO, REMOVED, RETIRED, type Bomb, type PlayerDoc, type Session } from './types'
 
 const sessionRef = doc(db, 'session', 'current')
 
@@ -179,9 +179,41 @@ export async function explodeRound() {
     tx.update(sessionRef, {
       status: result.finished ? 'FINISHED' : 'EXPLODED',
       alive: result.alive,
-      eliminatedThisRound: result.out,
+      // Players whose fuse ran out earlier in the round are already on the list.
+      eliminatedThisRound: [...s.eliminatedThisRound, ...result.out],
       winners: result.winners,
       outRound,
+    })
+  })
+}
+
+/**
+ * Called by the host page when a bomb has sat on one player for the whole fuse: that player is out and the
+ * bomb jumps to someone else with a fresh fuse. Does nothing if the bomb moved on in the meantime
+ * (`passes` changed) or the round is over (the round-end blast deals with it).
+ */
+export async function fuseBlast(id: string, expectedPasses: number) {
+  await runTransaction(db, async (tx) => {
+    const s = (await tx.get(sessionRef)).data() as Session
+    if (s.status !== 'LIVE' || !s.explodesAt || serverNow() >= s.explodesAt.toMillis()) return
+    const refs = Array.from({ length: s.bombCount }, (_, i) => doc(db, 'bombs', bombId(s.sessionId, s.round, i)))
+    const snaps = await Promise.all(refs.map((r) => tx.get(r)))
+    const bomb = snaps.find((b) => b.id === id)?.data() as Omit<Bomb, 'id'> | undefined
+    if (!bomb || bomb.passes !== expectedPasses || !s.alive.includes(bomb.holder)) return
+    const victim = bomb.holder
+    const holders = snaps.map((b) => b.data()?.holder as number)
+    const r = resolveFuseBlast(s.alive, holders, victim)
+    tx.update(doc(db, 'bombs', id), {
+      holder: r.respawnTo ?? RETIRED,
+      prevHolder: victim,
+      passes: bomb.passes + 1,
+      receivedAt: serverTimestamp(),
+    })
+    tx.update(sessionRef, {
+      alive: r.alive,
+      outRound: { ...s.outRound, [String(victim)]: s.round },
+      eliminatedThisRound: [...s.eliminatedThisRound, victim],
+      ...(r.finished ? { status: 'FINISHED', winners: r.winners } : {}),
     })
   })
 }

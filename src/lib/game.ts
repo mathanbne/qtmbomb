@@ -1,5 +1,5 @@
 // Pure game rules. No Firebase here so they can be unit tested.
-import { REMOVED, type Session } from './types'
+import { FUSE_MS, REMOVED, type Session } from './types'
 
 export type Rng = () => number
 
@@ -39,6 +39,37 @@ export function pickPassTarget(
   const tiers = [others.filter((n) => !busy.has(n) && n !== prev), others.filter((n) => !busy.has(n)), others]
   for (const t of tiers) if (t.length > 0) return t[Math.floor(rng() * t.length)]
   return null
+}
+
+/** True once a bomb has been on the same holder for the whole fuse. A pass still in flight (no server time yet) hasn't. */
+export function fuseExpired(receivedAtMs: number | null, now: number, fuseMs = FUSE_MS): boolean {
+  return receivedAtMs !== null && now >= receivedAtMs + fuseMs
+}
+
+export interface FuseBlast {
+  alive: number[]
+  /** Where the bomb goes next, or null if every remaining player already has one (the bomb is retired). */
+  respawnTo: number | null
+  winners: number[]
+  finished: boolean
+}
+
+/**
+ * `victim` held a bomb too long: they're out, and the bomb jumps to a random player who is still in and
+ * isn't already holding one. If only one player is left, they win.
+ */
+export function resolveFuseBlast(
+  alive: readonly number[],
+  holders: Iterable<number>,
+  victim: number,
+  rng: Rng = Math.random,
+): FuseBlast {
+  const left = alive.filter((n) => n !== victim)
+  if (left.length <= 1) return { alive: left, respawnTo: null, winners: left, finished: true }
+  const busy = new Set(holders)
+  const free = left.filter((n) => !busy.has(n))
+  const respawnTo = free.length > 0 ? free[Math.floor(rng() * free.length)] : null
+  return { alive: left, respawnTo, winners: [], finished: false }
 }
 
 export interface Explosion {

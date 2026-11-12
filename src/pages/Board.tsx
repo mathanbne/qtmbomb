@@ -3,7 +3,7 @@ import { Countdown, Logo, Spinner } from '../components/Brand'
 import { celebrate } from '../lib/celebrate'
 import { EVENT } from '../lib/event'
 import { useAnonymousUser, useBombs, usePrevious, useRemaining, useSession, useWakeLock } from '../lib/hooks'
-import { REMOVED, type Session } from '../lib/types'
+import { REMOVED, RETIRED, type Session } from '../lib/types'
 
 type Filter = 'all' | 'in' | 'out'
 
@@ -29,7 +29,7 @@ export default function Board() {
   if (loading) return <div className="flex min-h-dvh items-center justify-center"><Spinner className="h-10 w-10" /></div>
   if (!session) return <div className="flex min-h-dvh items-center justify-center text-xl text-plum">No game yet.</div>
 
-  const holders = new Set(status === 'LIVE' ? bombs.map((b) => b.holder) : [])
+  const holders = new Set(status === 'LIVE' ? bombs.map((b) => b.holder).filter((h) => h !== RETIRED) : [])
   const numbers = Object.keys(session.roster).map(Number).sort((a, b) => a - b)
   const inCount = session.alive.length
   const outCount = numbers.length - inCount
@@ -124,7 +124,7 @@ function useFit(count: number) {
 function TileGrid({ numbers, session, holders }: { numbers: number[]; session: Session; holders: Set<number> }) {
   const { ref, scroll, cols, tileH } = useFit(numbers.length)
   const alive = new Set(session.alive)
-  const justOut = new Set(session.status === 'LIVE' ? [] : session.eliminatedThisRound)
+  const justOut = new Set(session.eliminatedThisRound)
   const winners = new Set(session.status === 'FINISHED' ? session.winners : [])
 
   return (

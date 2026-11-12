@@ -38,6 +38,7 @@ export interface Bomb {
   id: string
   sessionId: string
   round: number
+  /** Player number, or RETIRED (-1) once the bomb is out of play. */
   holder: number
   prevHolder: number | null
   passes: number
@@ -47,3 +48,7 @@ export interface Bomb {
 export const DURATIONS = [15, 30] as const
 export const DEFAULT_BOMB_RATIO = 8
 export const REMOVED = 0
+/** A player can hold a bomb for this long. After that it blows up on them. */
+export const FUSE_MS = 3000
+/** `holder` of a bomb that blew up when every remaining player already had one: it's out of play. */
+export const RETIRED = -1

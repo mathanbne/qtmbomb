@@ -1,6 +1,6 @@
 # QTM Pass the Bomb
 
-A live party game for QTM events. Players scan a QR code, type their first name and get a number. Each round, bombs land on random phones. Whoever has a bomb taps **PASS** to throw it to another random player. Anyone holding a bomb when the countdown hits zero hears the blast 💥 and is out. Rounds repeat until one player is left: the winner.
+A live party game for QTM events. Players scan a QR code, type their first name and get a number. Each round, bombs land on random phones. Whoever has a bomb taps **PASS** within 3 seconds to throw it to another random player, or it blows up on them. Anyone holding a bomb when the countdown hits zero hears the blast 💥 and is out. Rounds repeat until one player is left: the winner.
 
 | Page | Who | What |
 |---|---|---|
@@ -14,11 +14,12 @@ This app is completely separate from Tambola and the quiz game. It has its own F
 
 ## How a round works
 
-- **Bombs per round**: one for every 8 players still in (the host can change this ratio). Never fewer than 1, and always fewer bombs than players. 300 players get 37 bombs, 40 players get 5, and 15 or fewer get 1. With 300 players and 30-second rounds, a game takes about 25–30 minutes.
+- **Bombs per round**: one for every 8 players still in (the host can change this ratio). Never fewer than 1, and always fewer bombs than players. 300 players get 37 bombs, 40 players get 5, and 15 or fewer get 1. With the 3-second fuse, games are much shorter than that (every bomb can knock someone out every few seconds). Raise the players-per-bomb ratio or use 15s rounds if they end too fast.
 - **When a bomb lands on a phone**: an alarm sounds, Android phones vibrate and the screen flashes red. **PASS** works once the player has held the bomb for 1 second. Each pass goes to a random player who is still in, isn't already holding a bomb, and (where possible) didn't just pass it to them.
+- **3-second fuse**: a player can hold a bomb for at most 3 seconds. If they still have it after that, it blows up on them and they're out on the spot. The bomb then jumps to another random player who is still in (and isn't already holding one) with a fresh 3-second fuse, and the round carries on. The phone shows a big 3…2…1 for the fuse, so players have between 1s and 3s to tap **PASS**. The server clock decides: a pass that reaches Firestore 3s or more after the bomb arrived is rejected, and the host page sets off the fuse. If every remaining player already has a bomb, the bomb that blew is taken out of play for the rest of the round.
 - **Ticking**: plays on the holder's phone and on the projector, and speeds up in the last 5 seconds.
 - **At zero**: the Firestore server clock decides. A pass that reaches the server after zero is rejected. A second later, the host page reads where every bomb is and knocks those players out.
-- **Asleep or gone**: a phone that is asleep or has left the game can't pass, so its player goes out. Absent players drop out on their own.
+- **Asleep or gone**: a phone that is asleep or has left the game can't pass, so its player goes out as soon as the 3-second fuse runs out. Absent players drop out on their own.
 - **Shared win**: if the last players all explode together, they share the win. With the default settings this can't happen.
 
 ## One-time setup
@@ -61,7 +62,7 @@ npm test           # game rules
 npm run build
 ```
 
-When you run `npm run dev`, the admin page has a **DEV: +50 fake players** button. Use it to fill the projector and board with a full room. Fake players have no phone, so they explode if a bomb lands on them.
+When you run `npm run dev`, the admin page has a **DEV: +50 fake players** button. Use it to fill the projector and board with a full room. Fake players have no phone, so they explode 3 seconds after a bomb lands on them.
 
 Code layout:
 
@@ -69,5 +70,5 @@ Code layout:
 - `src/lib/api.ts`: all Firestore reads and writes
 - `src/lib/clock.ts`: server-clock offset so every countdown matches
 - `src/lib/sound.ts`: alarm, tick, whoosh, blast and fanfare (Web Audio, no sound files)
-- `firestore.rules`: only the holder can pass, only to players still in, only before zero; only the host runs the game
+- `firestore.rules`: only the holder can pass, only to players still in, only within the 3s fuse and before zero; only the host runs the game and moves bombs whose fuse ran out
 - `src/pages/`: Player, Admin, Screen, Board, Poster

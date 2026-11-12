@@ -5,11 +5,11 @@ import { joinSession, passBomb, watchMe } from '../lib/api'
 import { celebrate } from '../lib/celebrate'
 import { firebaseConfigured } from '../lib/firebase'
 import { playerLabel } from '../lib/game'
-import { useAnonymousUser, useBombs, useOnline, usePrevious, useRemaining, useSession, useWakeLock, vibrate } from '../lib/hooks'
+import { useAnonymousUser, useBombs, useOnline, usePrevious, useRemaining, useServerNow, useSession, useWakeLock, vibrate } from '../lib/hooks'
 import { SoundToggle } from '../components/SoundToggle'
 import { EVENT } from '../lib/event'
 import { setMuted, sounds, unlockAudio } from '../lib/sound'
-import { REMOVED, type PlayerDoc, type Session } from '../lib/types'
+import { FUSE_MS, REMOVED, RETIRED, type PlayerDoc, type Session } from '../lib/types'
 
 /** How long you must hold a bomb before PASS works, so you hear the alarm and it can't bounce straight back. */
 const MIN_HOLD_MS = 1000
@@ -105,7 +105,7 @@ function JoinForm({ sessionId, uid }: { sessionId: string; uid: string }) {
         <p className="text-center text-sm font-semibold uppercase tracking-[0.25em] text-gold-light">{EVENT.name} · {EVENT.hosts}</p>
         <div className="text-center text-7xl">💣</div>
         <h1 className="text-center font-serif text-4xl font-bold text-gold-light">Pass the Bomb</h1>
-        <p className="text-center text-cream/80">If the bomb lands on you, pass it on fast. If you're holding it when the timer hits zero, you're out!</p>
+        <p className="text-center text-cream/80">If the bomb lands on you, pass it within 3 seconds or it blows up on you. Holding it when the timer hits zero? You're out too!</p>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -128,6 +128,7 @@ function JoinForm({ sessionId, uid }: { sessionId: string; uid: string }) {
 function Game({ session, number, name, online }: { session: Session; number: number; name: string; online: boolean }) {
   const bombs = useBombs(session)
   const remaining = useRemaining(session)
+  const now = useServerNow(100)
   const [passing, setPassing] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const arrivals = useRef(new Map<string, number>())
@@ -137,7 +138,8 @@ function Game({ session, number, name, online }: { session: Session; number: num
   const live = status === 'LIVE'
   const myBombs = live ? bombs.filter((b) => b.holder === number) : []
   const holding = alive && myBombs.length > 0
-  const outThisRound = session.eliminatedThisRound.includes(number) && status !== 'LIVE'
+  // Includes a fuse that ran out mid-round, not only the blast at zero.
+  const outThisRound = session.eliminatedThisRound.includes(number)
   const won = status === 'FINISHED' && session.winners.includes(number)
   const label = (n: number) => playerLabel(n, roster)
 
@@ -159,8 +161,13 @@ function Game({ session, number, name, online }: { session: Session; number: num
     }
   }, [myBombKey])
 
-  // Ticking while you hold it, faster in the last 5 seconds.
-  const urgent = remaining > 0 && remaining <= 5000
+  // The fuse on the bomb that blows soonest. Until the server stamps it, assume it just started.
+  const fuseLeft = holding
+    ? Math.min(...myBombs.map((b) => Math.max(0, (b.receivedAt ? b.receivedAt.toMillis() + FUSE_MS : now + FUSE_MS) - now)))
+    : 0
+
+  // Ticking while you hold it, faster in the last 5 seconds of the round or the last second and a half of the fuse.
+  const urgent = (remaining > 0 && remaining <= 5000) || (holding && fuseLeft <= 1500)
   const timeUp = remaining === 0
   useEffect(() => {
     if (!holding || timeUp) return
@@ -172,15 +179,20 @@ function Game({ session, number, name, online }: { session: Session; number: num
   useEffect(() => {
     if (prevStatus === undefined || prevStatus === status) return
     if (status === 'LIVE') sounds.start()
-    if ((status === 'EXPLODED' || status === 'FINISHED') && outThisRound) {
-      sounds.blast()
-      vibrate([800, 100, 400])
-    }
     if (status === 'FINISHED' && won) {
       sounds.fanfare()
       celebrate(true)
     }
-  }, [status, prevStatus, outThisRound, won])
+  }, [status, prevStatus, won])
+
+  // BOOM as soon as you're knocked out: at zero, or mid-round when the fuse runs out.
+  const wasOut = usePrevious(outThisRound)
+  useEffect(() => {
+    if (wasOut === false && outThisRound) {
+      sounds.blast()
+      vibrate([800, 100, 400])
+    }
+  }, [wasOut, outThisRound])
 
   const showToast = (text: string) => {
     setToast(text)
@@ -188,7 +200,7 @@ function Game({ session, number, name, online }: { session: Session; number: num
   }
 
   const passable = myBombs.find((b) => Date.now() - (arrivals.current.get(`${b.id}:${b.passes}`) ?? Date.now()) >= MIN_HOLD_MS)
-  const canPass = holding && remaining > 0 && !!passable && !passing
+  const canPass = holding && remaining > 0 && fuseLeft > 0 && !!passable && !passing
 
   const pass = async () => {
     if (!passable) return
@@ -199,14 +211,14 @@ function Game({ session, number, name, online }: { session: Session; number: num
       vibrate(60)
       showToast(`Passed to ${label(target)}!`)
     } catch {
-      showToast(remaining === 0 ? "Too late! Time's up." : "Didn't go through. Try again!")
+      showToast(remaining === 0 ? "Too late! Time's up." : fuseLeft === 0 ? 'Too slow! It blew up.' : "Didn't go through. Try again!")
     } finally {
       setPassing(false)
     }
   }
 
   const playersLeft = session.alive.length
-  const bombsInPlay = live ? session.bombCount : 0
+  const bombsInPlay = live ? bombs.filter((b) => b.holder !== RETIRED).length : 0
 
   let bg = 'bg-plum-dark text-cream'
   let content: ReactNode
@@ -260,7 +272,9 @@ function Game({ session, number, name, online }: { session: Session; number: num
         <div className="animate-wobble text-[9rem] leading-none">💣</div>
         <h1 className="text-3xl font-black uppercase">You've got the bomb!</h1>
         {myBombs.length > 1 && <p className="font-bold">You're holding {myBombs.length} bombs!</p>}
-        <Countdown ms={remaining} className="text-6xl text-white" />
+        <p className="text-lg font-bold uppercase">Pass it in</p>
+        <div className="text-8xl font-black tabular-nums leading-none">{Math.ceil(fuseLeft / 1000)}</div>
+        <p className="text-base font-semibold text-white/85">Round ends in <span className="font-black tabular-nums">0:{String(Math.ceil(remaining / 1000)).padStart(2, '0')}</span></p>
         {remaining > 0 ? (
           <button
             onClick={pass}
@@ -307,6 +321,7 @@ function Game({ session, number, name, online }: { session: Session; number: num
           <ul className="mt-4 space-y-1 text-left text-sm text-cream/85">
             <li>💣 Bombs land on random players.</li>
             <li>👆 Got one? Tap <b>PASS</b> to throw it to someone else.</li>
+            <li>⏱ Pass it within <b>3 seconds</b> or it blows up on you.</li>
             <li>💥 Holding a bomb when the timer hits zero? You're out.</li>
             <li>🏆 Last player standing wins!</li>
           </ul>

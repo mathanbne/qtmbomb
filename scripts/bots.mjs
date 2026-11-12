@@ -77,7 +77,7 @@ async function startBot(name, i) {
       const key = `${b.id}:${b.passes}`
       if (b.holder !== me.number || scheduled.has(key)) continue
       scheduled.add(key)
-      const delay = 1000 + Math.random() * 3500
+      const delay = 1000 + Math.random() * 2400 // about 1 in 5 holds runs past the 3s fuse
       log(`${name} (#${me.number}) 💣 got a bomb, passing in ${(delay / 1000).toFixed(1)}s`)
       setTimeout(() => pass(b), delay)
     }

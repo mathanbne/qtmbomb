@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { bombCount, pickPassTarget, placeBombs, resolveExplosion, results } from './game'
+import { bombCount, fuseExpired, pickPassTarget, placeBombs, resolveExplosion, resolveFuseBlast, results } from './game'
+import { RETIRED } from './types'
 
 /** Deterministic RNG (mulberry32) so failures reproduce. */
 function seeded(seed: number) {
@@ -89,8 +90,39 @@ describe('resolveExplosion', () => {
   it('crowns the last player standing', () => {
     expect(resolveExplosion([4, 7], [7])).toEqual({ out: [7], alive: [4], winners: [4], finished: true })
   })
+  it('ignores retired bombs', () => {
+    expect(resolveExplosion([1, 2, 3], [RETIRED, 2]).out).toEqual([2])
+  })
   it('makes the last players share the win if they all explode together', () => {
     expect(resolveExplosion([4, 7], [4, 7])).toEqual({ out: [], alive: [4, 7], winners: [4, 7], finished: true })
+  })
+})
+
+describe('fuseExpired', () => {
+  it('blows at exactly the fuse length', () => {
+    expect(fuseExpired(1000, 3999, 3000)).toBe(false)
+    expect(fuseExpired(1000, 4000, 3000)).toBe(true)
+  })
+  it('never blows while the pass has no server time yet', () => {
+    expect(fuseExpired(null, 1e12)).toBe(false)
+  })
+})
+
+describe('resolveFuseBlast', () => {
+  it('knocks out the victim and moves the bomb to a free player', () => {
+    const rng = seeded(5)
+    for (let i = 0; i < 300; i++) {
+      const r = resolveFuseBlast([1, 2, 3, 4, 5, 6], [2, 4, 1], 2, rng)
+      expect(r.alive).toEqual([1, 3, 4, 5, 6])
+      expect([3, 5, 6]).toContain(r.respawnTo)
+      expect(r.finished).toBe(false)
+    }
+  })
+  it('retires the bomb when everyone left already has one', () => {
+    expect(resolveFuseBlast([1, 2, 3], [1, 2, 3], 1, seeded(1))).toEqual({ alive: [2, 3], respawnTo: null, winners: [], finished: false })
+  })
+  it('crowns the last player standing', () => {
+    expect(resolveFuseBlast([4, 7], [7], 7)).toEqual({ alive: [4], respawnTo: null, winners: [4], finished: true })
   })
 })
 
