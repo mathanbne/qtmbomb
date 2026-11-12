@@ -150,7 +150,8 @@ export async function startRound() {
         holder,
         prevHolder: null,
         passes: 0,
-        receivedAt: serverTimestamp(),
+        // The fuse starts once the bombs have had time to reach the phones (they first have to see the new round).
+        receivedAt: Timestamp.fromMillis(serverNow() + DELIVERY_MS),
       })
     })
     tx.update(sessionRef, {
@@ -192,18 +193,19 @@ export async function explodeRound() {
  * bomb jumps to someone else with a fresh fuse. Does nothing if the bomb moved on in the meantime
  * (`passes` changed) or the round is over (the round-end blast deals with it).
  */
-export async function fuseBlast(id: string, expectedPasses: number) {
+export async function fuseBlast(id: string, expectedPasses: number, holders: number[]) {
   await runTransaction(db, async (tx) => {
+    // Reads only the session and this bomb. Reading every bomb made the transaction restart whenever any
+    // other bomb was passed, which delayed blasts by many seconds in a busy round.
     const s = (await tx.get(sessionRef)).data() as Session
     if (s.status !== 'LIVE' || !s.explodesAt || serverNow() >= s.explodesAt.toMillis()) return
-    const refs = Array.from({ length: s.bombCount }, (_, i) => doc(db, 'bombs', bombId(s.sessionId, s.round, i)))
-    const snaps = await Promise.all(refs.map((r) => tx.get(r)))
-    const bomb = snaps.find((b) => b.id === id)?.data() as Omit<Bomb, 'id'> | undefined
-    if (!bomb || bomb.passes !== expectedPasses || !s.alive.includes(bomb.holder)) return
+    const ref = doc(db, 'bombs', id)
+    const bomb = (await tx.get(ref)).data() as Omit<Bomb, 'id'> | undefined
+    if (!bomb || bomb.round !== s.round || bomb.passes !== expectedPasses || !s.alive.includes(bomb.holder)) return
     const victim = bomb.holder
-    const holders = snaps.map((b) => b.data()?.holder as number)
+    // `holders` comes from the host's live view of the bombs; at worst the respawn lands on someone who just got one.
     const r = resolveFuseBlast(s.alive, holders, victim)
-    tx.update(doc(db, 'bombs', id), {
+    tx.update(ref, {
       holder: r.respawnTo ?? RETIRED,
       prevHolder: victim,
       passes: bomb.passes + 1,

@@ -62,8 +62,8 @@ service cloud.firestore {
           && me.number == resource.data.holder
           // Must have held it for a moment (the phone waits 1s; this allows for clock jitter).
           && request.time >= resource.data.receivedAt + duration.value(500, 'ms')
-          // ...but no longer than the 3-second fuse (FUSE_MS); after that it has blown up on them.
-          && request.time < resource.data.receivedAt + duration.value(3, 's')
+          // ...but no longer than the 3-second fuse plus 0.3s for the network (FUSE_MS + FUSE_SLACK_MS).
+          && request.time < resource.data.receivedAt + duration.value(3300, 'ms')
           && b.diff(resource.data).affectedKeys().hasOnly(['holder', 'prevHolder', 'passes', 'receivedAt'])
           && b.holder is int
           && b.holder != resource.data.holder
@@ -74,8 +74,14 @@ service cloud.firestore {
       }
       allow read: if true;
       allow create: if isHost();
-      // The host moves a bomb when its fuse runs out on someone.
-      allow update: if isHost() || validPass();
+      // The host moves a bomb when its fuse runs out on someone, and never earlier: the server clock decides,
+      // so a host laptop with a wrong clock can't blow bombs up the moment they land.
+      function validFuseBlast() {
+        return isHost()
+          && request.time >= resource.data.receivedAt + duration.value(3300, 'ms')
+          && request.resource.data.receivedAt == request.time;
+      }
+      allow update: if validPass() || validFuseBlast();
     }
   }
 }

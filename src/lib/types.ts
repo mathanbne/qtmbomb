@@ -50,5 +50,10 @@ export const DEFAULT_BOMB_RATIO = 8
 export const REMOVED = 0
 /** A player can hold a bomb for this long. After that it blows up on them. */
 export const FUSE_MS = 3000
+/**
+ * Network allowance on top of the fuse: a PASS tapped just before the phone shows 0 still counts if it reaches
+ * the server within this. The host sets the bomb off only after it (firestore.rules uses the same 3300ms).
+ */
+export const FUSE_SLACK_MS = 300
 /** `holder` of a bomb that blew up when every remaining player already had one: it's out of play. */
 export const RETIRED = -1

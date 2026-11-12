@@ -166,6 +166,10 @@ function Game({ session, number, name, online }: { session: Session; number: num
     ? Math.min(...myBombs.map((b) => Math.max(0, (b.receivedAt ? b.receivedAt.toMillis() + FUSE_MS : now + FUSE_MS) - now)))
     : 0
 
+  // The fuse hit 0 with no pass on its way: show BOOM now instead of waiting for the host to confirm it.
+  const fuseBlew = live && holding && fuseLeft === 0 && remaining > 0 && !passing
+  const boom = outThisRound || fuseBlew
+
   // Ticking while you hold it, faster in the last 5 seconds of the round or the last second and a half of the fuse.
   const urgent = (remaining > 0 && remaining <= 5000) || (holding && fuseLeft <= 1500)
   const timeUp = remaining === 0
@@ -186,20 +190,26 @@ function Game({ session, number, name, online }: { session: Session; number: num
   }, [status, prevStatus, won])
 
   // BOOM as soon as you're knocked out: at zero, or mid-round when the fuse runs out.
-  const wasOut = usePrevious(outThisRound)
+  const wasBoom = usePrevious(boom)
   useEffect(() => {
-    if (wasOut === false && outThisRound) {
+    if (wasBoom === false && boom) {
       sounds.blast()
       vibrate([800, 100, 400])
     }
-  }, [wasOut, outThisRound])
+  }, [wasBoom, boom])
 
   const showToast = (text: string) => {
     setToast(text)
     setTimeout(() => setToast((t) => (t === text ? null : t)), 1800)
   }
 
-  const passable = myBombs.find((b) => Date.now() - (arrivals.current.get(`${b.id}:${b.passes}`) ?? Date.now()) >= MIN_HOLD_MS)
+  // Held for MIN_HOLD_MS on this phone, and past the server's own minimum (firestore.rules: 500ms after the fuse
+  // starts; at the start of a round a bomb can reach the phone before its fuse does).
+  const passable = myBombs.find(
+    (b) =>
+      Date.now() - (arrivals.current.get(`${b.id}:${b.passes}`) ?? Date.now()) >= MIN_HOLD_MS &&
+      (!b.receivedAt || now >= b.receivedAt.toMillis() + 600),
+  )
   const canPass = holding && remaining > 0 && fuseLeft > 0 && !!passable && !passing
 
   const pass = async () => {
@@ -242,7 +252,7 @@ function Game({ session, number, name, online }: { session: Session; number: num
         <p className="mt-4 text-cream/80">{alive ? 'Thanks for playing!' : `You went out in round ${session.outRound[String(number)]}. Thanks for playing!`}</p>
       </Center>
     )
-  } else if (outThisRound) {
+  } else if (boom) {
     bg = 'bg-neutral-900 text-white'
     content = (
       <Center>
@@ -273,7 +283,7 @@ function Game({ session, number, name, online }: { session: Session; number: num
         <h1 className="text-3xl font-black uppercase">You've got the bomb!</h1>
         {myBombs.length > 1 && <p className="font-bold">You're holding {myBombs.length} bombs!</p>}
         <p className="text-lg font-bold uppercase">Pass it in</p>
-        <div className="text-8xl font-black tabular-nums leading-none">{Math.ceil(fuseLeft / 1000)}</div>
+        <div className="text-8xl font-black tabular-nums leading-none">{Math.min(FUSE_MS / 1000, Math.ceil(fuseLeft / 1000))}</div>
         <p className="text-base font-semibold text-white/85">Round ends in <span className="font-black tabular-nums">0:{String(Math.ceil(remaining / 1000)).padStart(2, '0')}</span></p>
         {remaining > 0 ? (
           <button

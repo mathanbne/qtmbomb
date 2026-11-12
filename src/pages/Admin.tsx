@@ -22,12 +22,12 @@ import { downloadText, resultsCsv } from '../lib/csv'
 import { auth, firebaseConfigured } from '../lib/firebase'
 import { bombCount, fuseExpired, playerLabel } from '../lib/game'
 import { useBombs, useServerNow, useSession } from '../lib/hooks'
-import { DURATIONS, FUSE_MS, REMOVED, RETIRED, type Session } from '../lib/types'
+import { DURATIONS, FUSE_MS, FUSE_SLACK_MS, REMOVED, RETIRED, type Session } from '../lib/types'
 
 /** Wait this long after zero before reading the bombs, so passes made just before zero have landed. */
 const EXPLODE_GRACE_MS = 1000
-/** Wait this long after a fuse runs out, so a pass made just in time has landed. */
-const FUSE_GRACE_MS = 400
+/** On top of the network allowance, a little for this laptop's clock estimate (the server rejects an early blast anyway). */
+const FUSE_GRACE_MS = 50
 /** Break between rounds when auto-advance is on. */
 const AUTO_ADVANCE_MS = 8000
 
@@ -113,7 +113,8 @@ function Login() {
 function HostConsole({ uid }: { uid: string }) {
   const { session, loading, error } = useSession()
   const bombs = useBombs(session)
-  const now = useServerNow(250)
+  // Fast tick: it times the fuse blasts.
+  const now = useServerNow(100)
   const [pending, setPending] = useState<string[]>([])
   const [toast, setToast] = useState<string | null>(null)
   const assigning = useRef(false)
@@ -169,11 +170,12 @@ function HostConsole({ uid }: { uid: string }) {
     for (const b of bombs) {
       const key = `${b.id}:${b.passes}`
       if (b.holder === RETIRED || fused.current.has(key)) continue
-      if (!fuseExpired(b.receivedAt?.toMillis() ?? null, now - FUSE_GRACE_MS)) continue
+      if (!fuseExpired(b.receivedAt?.toMillis() ?? null, now, FUSE_MS + FUSE_SLACK_MS + FUSE_GRACE_MS)) continue
       fused.current.add(key)
-      fuseBlast(b.id, b.passes).catch((e) => {
+      fuseBlast(b.id, b.passes, bombs.map((x) => x.holder)).catch((e) => {
         fused.current.delete(key) // retry on the next tick
-        fail(e)
+        // Too early by the server clock (this laptop's clock is a little off): just try again.
+        if ((e as { code?: string }).code !== 'permission-denied') fail(e)
       })
     }
   }, [now, explodesAt, bombs, fail])
