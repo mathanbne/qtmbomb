@@ -22,7 +22,7 @@ import { downloadText, resultsCsv } from '../lib/csv'
 import { auth, firebaseConfigured } from '../lib/firebase'
 import { bombCount, fuseExpired, playerLabel } from '../lib/game'
 import { useBombs, useServerNow, useSession } from '../lib/hooks'
-import { DURATIONS, FUSE_MS, FUSE_SLACK_MS, REMOVED, RETIRED, type Session } from '../lib/types'
+import { DURATIONS, FUSE_MS, FUSE_SLACK_MS, MAX_PLAYERS, REMOVED, RETIRED, isFull, type Session } from '../lib/types'
 
 /** Wait this long after zero before reading the bombs, so passes made just before zero have landed. */
 const EXPLODE_GRACE_MS = 1000
@@ -267,15 +267,18 @@ function RoundPanel({ session, bombs, now, pending, run }: {
         <h2 className="text-xl font-black text-plum">
           {status === 'LOBBY' ? 'Lobby' : status === 'FINISHED' ? 'Game over' : `Round ${round}`}
         </h2>
-        <span className="text-sm font-semibold text-plum/70">{alive.length} in · {Object.keys(roster).length} joined</span>
+        <span className="text-sm font-semibold text-plum/70">{alive.length} in · {Object.keys(roster).length} joined · max {MAX_PLAYERS}</span>
       </div>
 
       {status === 'LOBBY' && (
         <div className="space-y-4">
           <label className="flex items-center gap-3 text-lg font-semibold">
-            <input type="checkbox" className="h-6 w-6" checked={session.registrationOpen}
+            <input type="checkbox" className="h-6 w-6" checked={session.registrationOpen} disabled={isFull(session)}
               onChange={(e) => run(() => setRegistration(e.target.checked))()} />
             Joining is {session.registrationOpen ? 'open' : 'closed'}
+            <span className="text-base font-normal text-plum/70">
+              {isFull(session) ? `· full (${MAX_PLAYERS} players)` : `· ${MAX_PLAYERS + 1 - session.nextNumber} places left`}
+            </span>
           </label>
           {pending > 0 && <p className="text-sm text-plum/70">Giving numbers to {pending} new {pending === 1 ? 'player' : 'players'}…</p>}
           {startButton}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { bombCount, fuseExpired, pickPassTarget, placeBombs, resolveExplosion, resolveFuseBlast, results } from './game'
-import { RETIRED } from './types'
+import { MAX_PLAYERS, RETIRED, isFull } from './types'
 
 /** Deterministic RNG (mulberry32) so failures reproduce. */
 function seeded(seed: number) {
@@ -141,5 +141,13 @@ describe('results', () => {
       [1, 4, 'Out in round 1'],
       [5, null, 'Removed'],
     ])
+  })
+})
+
+describe('isFull', () => {
+  it('is full once all numbers up to MAX_PLAYERS are handed out', () => {
+    expect(MAX_PLAYERS).toBe(200)
+    expect(isFull({ nextNumber: 200 })).toBe(false)
+    expect(isFull({ nextNumber: 201 })).toBe(true)
   })
 })

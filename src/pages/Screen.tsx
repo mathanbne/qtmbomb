@@ -8,7 +8,7 @@ import { playerLabel } from '../lib/game'
 import { useAnonymousUser, useBombs, usePrevious, useRemaining, useSession, useWakeLock } from '../lib/hooks'
 import { EVENT } from '../lib/event'
 import { sounds } from '../lib/sound'
-import { RETIRED } from '../lib/types'
+import { MAX_PLAYERS, RETIRED, isFull } from '../lib/types'
 
 /** Projector page: join QR in the lobby, then the countdown, the bombs and the blasts. */
 export default function Screen() {
@@ -92,9 +92,9 @@ export default function Screen() {
           </div>
           <div>
             <h1 className="whitespace-nowrap font-serif text-7xl font-bold text-gold-light">💣 Pass the Bomb</h1>
-            <p className="mt-4 text-3xl text-cream/80">{session.registrationOpen ? 'Scan to join!' : 'Joining opens soon…'}</p>
+            <p className="mt-4 text-3xl text-cream/80">{isFull(session) ? `Game full: all ${MAX_PLAYERS} places taken` : session.registrationOpen ? 'Scan to join!' : 'Joining opens soon…'}</p>
             <div className="mt-6 text-[8rem] font-black leading-none text-gold-light">{joined.length}</div>
-            <div className="text-3xl font-semibold">players in</div>
+            <div className="text-3xl font-semibold">players in <span className="text-cream/60">· max {MAX_PLAYERS}</span></div>
             <div className="mt-6 flex flex-wrap gap-2">
               {recent.map((n) => (
                 <span key={n} className="animate-pop-in rounded-full bg-white/15 px-4 py-1.5 text-xl font-semibold">{label(n)}</span>

@@ -34,6 +34,8 @@ service cloud.firestore {
         let p = request.resource.data;
         return signedIn() && request.auth.uid == uid
           && s.registrationOpen == true
+          // MAX_PLAYERS in src/lib/types.ts: no new joins once 200 numbers are handed out.
+          && s.nextNumber <= 200
           && p.keys().hasOnly(['sessionId', 'name', 'number', 'joinedAt'])
           && p.sessionId == s.sessionId
           && p.number == null

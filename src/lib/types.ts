@@ -47,6 +47,10 @@ export interface Bomb {
 
 export const DURATIONS = [15, 30] as const
 export const DEFAULT_BOMB_RATIO = 8
+/** Most players one game takes. Joining closes by itself once this many have numbers (firestore.rules: 200). */
+export const MAX_PLAYERS = 200
+/** True once every player number has been handed out. */
+export const isFull = (s: Pick<Session, 'nextNumber'>) => s.nextNumber > MAX_PLAYERS
 export const REMOVED = 0
 /** A player can hold a bomb for this long. After that it blows up on them. */
 export const FUSE_MS = 3000

@@ -9,7 +9,7 @@ import { useAnonymousUser, useBombs, useOnline, usePrevious, useRemaining, useSe
 import { SoundToggle } from '../components/SoundToggle'
 import { EVENT } from '../lib/event'
 import { setMuted, sounds, unlockAudio } from '../lib/sound'
-import { FUSE_MS, REMOVED, RETIRED, type PlayerDoc, type Session } from '../lib/types'
+import { FUSE_MS, MAX_PLAYERS, REMOVED, RETIRED, isFull, type PlayerDoc, type Session } from '../lib/types'
 
 /** How long you must hold a bomb before PASS works, so you hear the alarm and it can't bounce straight back. */
 const MIN_HOLD_MS = 1000
@@ -33,7 +33,9 @@ export default function Player() {
   else if (error || authError) body = <CenteredMessage title="Can't connect">{error ?? authError}</CenteredMessage>
   else if (loading || !uid || me === undefined) body = <div className="flex flex-1 items-center justify-center"><Spinner className="h-10 w-10" /></div>
   else if (!session) body = <CenteredMessage title="No game yet">The host hasn't set up a game. Hang tight!</CenteredMessage>
-  else if (!joined) {
+  else if (!joined && isFull(session)) {
+    body = <CenteredMessage title="The game is full">All {MAX_PLAYERS} places are taken. <Link to="/board" className="mt-3 block font-bold text-plum underline">👀 Watch the board</Link></CenteredMessage>
+  } else if (!joined) {
     body = session.registrationOpen ? (
       <JoinForm sessionId={session.sessionId} uid={uid} />
     ) : (
@@ -47,6 +49,14 @@ export default function Player() {
         ) : (
           'Keep this page open. It will let you join as soon as the host opens the game.'
         )}
+      </CenteredMessage>
+    )
+  } else if (me.number === null && isFull(session)) {
+    body = (
+      <CenteredMessage title={`Sorry ${me.name}, the game is full`}>
+        All {MAX_PLAYERS} places were taken just before you.
+        <br />
+        <Link to="/board" className="mt-3 inline-block font-bold text-plum underline">👀 Watch the board</Link>
       </CenteredMessage>
     )
   } else if (me.number === null) {

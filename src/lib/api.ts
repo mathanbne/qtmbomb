@@ -17,7 +17,7 @@ import { serverNow } from './clock'
 import { auth, db } from './firebase'
 import { bombCount, pickPassTarget, placeBombs, resolveExplosion, resolveFuseBlast } from './game'
 import { newId } from './ids'
-import { DEFAULT_BOMB_RATIO, REMOVED, RETIRED, type Bomb, type PlayerDoc, type Session } from './types'
+import { DEFAULT_BOMB_RATIO, MAX_PLAYERS, REMOVED, RETIRED, type Bomb, type PlayerDoc, type Session } from './types'
 
 const sessionRef = doc(db, 'session', 'current')
 
@@ -115,7 +115,10 @@ export function watchPendingPlayers(sessionId: string, cb: (uids: string[]) => v
   })
 }
 
-/** Gives numbers in join order. One transaction, so a second admin tab can't hand out the same number twice. */
+/**
+ * Gives numbers in join order, up to MAX_PLAYERS. One transaction, so a second admin tab can't hand out the
+ * same number twice. Closes joining once the game is full; anyone still waiting is told it's full.
+ */
 export async function assignNumbers(uids: string[]) {
   const batch = uids.slice(0, 200)
   await runTransaction(db, async (tx) => {
@@ -127,12 +130,16 @@ export async function assignNumbers(uids: string[]) {
     for (const p of players) {
       const data = p.data() as PlayerDoc | undefined
       if (!data || data.sessionId !== s.sessionId || data.number !== null) continue
+      if (next > MAX_PLAYERS) break
       const n = next++
       tx.update(p.ref, { number: n })
       roster[String(n)] = data.name
       added.push(n)
     }
-    if (added.length > 0) tx.update(sessionRef, { nextNumber: next, roster, alive: [...s.alive, ...added] })
+    const full = next > MAX_PLAYERS
+    if (added.length > 0 || (full && s.registrationOpen)) {
+      tx.update(sessionRef, { nextNumber: next, roster, alive: [...s.alive, ...added], ...(full ? { registrationOpen: false } : {}) })
+    }
   })
 }
 
@@ -239,11 +246,12 @@ export async function seedFakePlayers(count: number) {
     const names = ['Priya', 'Arun', 'Kavya', 'Vijay', 'Meena', 'Karthik', 'Divya', 'Suresh', 'Lakshmi', 'Ravi', 'Anitha', 'Bala']
     const roster = { ...s.roster }
     const added: number[] = []
-    for (let i = 0; i < count; i++) {
+    const n = Math.max(0, Math.min(count, MAX_PLAYERS + 1 - s.nextNumber))
+    for (let i = 0; i < n; i++) {
       const n = s.nextNumber + i
       roster[String(n)] = names[n % names.length]
       added.push(n)
     }
-    tx.update(sessionRef, { roster, alive: [...s.alive, ...added], nextNumber: s.nextNumber + count })
+    tx.update(sessionRef, { roster, alive: [...s.alive, ...added], nextNumber: s.nextNumber + n })
   })
 }
